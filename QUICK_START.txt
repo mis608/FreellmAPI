@@ -1,0 +1,134 @@
+# FreeLLMAPI — Quick Start Guide
+# Run these commands in order from the project root (d:/freellmapi)
+
+# ============================================================
+# 1. INSTALL DEPENDENCIES (run once)
+# ============================================================
+npm install
+
+# ============================================================
+# 2. START THE PROJECT (server + client together)
+# ============================================================
+npm run dev
+
+# That's it! The server and client will both start.
+# You'll see output like:
+#   server  > tsx watch src/index.ts
+#   client  > vite
+#
+# Server typically runs on: http://localhost:3000
+# Client (dashboard) on:    http://localhost:5173 (or similar)
+
+# ============================================================
+# 3. TO START ON LAN (accessible from other devices)
+# ============================================================
+npm run dev:lan
+
+# ============================================================
+# 4. TO STOP THE PROJECT
+# ============================================================
+# Press Ctrl + C in the terminal
+# Or close the terminal window
+
+# ============================================================
+# 5. INDIVIDUAL START COMMANDS
+# ============================================================
+
+# Start server only
+npm run dev -w server
+# or
+cd server && npm run dev
+
+# Start client only
+npm run dev -w client
+# or
+cd client && npm run dev
+
+# ============================================================
+# 6. PRODUCTION START (after building)
+# ============================================================
+
+# Build everything
+npm run build
+
+# Start server in production
+cd server && npm start
+
+# Preview client in production
+cd client && npm run preview
+
+# ============================================================
+# 7. DATABASE MIGRATIONS
+# ============================================================
+
+# Check migration status
+npm run db:migration:status
+
+# Run pending migrations
+npm run db:migration:up
+
+# Rollback last migration
+npm run db:migration:down
+
+# Reset database and re-run all migrations
+npm run db:migration:fresh
+
+# Create a new migration
+npm run db:migration:create
+
+# ============================================================
+# 8. TESTING
+# ============================================================
+
+# Run all tests
+npm run test
+
+# Run server tests only
+cd server && npm test
+
+# Run CLI tests only
+cd cli && npm test
+
+# Run client tests only
+cd client && npm test
+
+# ============================================================
+# 9. USEFUL SHORTCUTS
+# ============================================================
+
+# Lint code
+npm run lint
+
+# Export model catalog
+cd server && npm run export-catalog
+
+# Rotate encryption key
+cd server && npm run rotate-encryption-key
+
+# ============================================================
+# 10. DESKTOP APP (optional)
+# ============================================================
+
+# Build desktop app
+npm run desktop:dist
+
+# Platform-specific builds
+npm run desktop:dist:mac:x64
+npm run desktop:dist:win
+npm run desktop:dist:linux
+
+# ============================================================
+# TROUBLESHOOTING
+# ============================================================
+
+# If dependencies fail to install, try:
+npm install --force
+
+# If you get port already in use errors, kill the process:
+# On Windows: use Task Manager to kill node.exe
+# Or find & kill the process using the port
+
+# If you need a completely clean start:
+# 1. Stop all running servers (Ctrl+C)
+# 2. npm install
+# 3. npm run dev

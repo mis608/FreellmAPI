@@ -1,5 +1,6 @@
 import dns from 'node:dns';
 import net from 'node:net';
+import { loadConfig } from './config.js';
 
 // Outbound guard for user-supplied custom-provider base URLs (#440).
 //
@@ -196,6 +197,41 @@ function blockPrivateEnabled(): boolean {
 }
 
 /**
+ * True when `url` addresses THIS gateway — a loopback/private host on the very
+ * port the server is listening on.
+ *
+ * Registering the gateway as one of its own upstream providers is an infinite
+ * request loop: the proxy calls /v1/chat/completions on itself, which routes
+ * again, and every hop burns a rate-limit slot before the innermost call 429s.
+ * Observed live as a self-referential custom key on :3001 whose stored
+ * credential was the unified API key itself, which turned one user request
+ * into hundreds of doomed upstream attempts.
+ *
+ * Deliberately narrower than the private-range policy above: a local Ollama or
+ * LM Studio on 127.0.0.1:11434 stays allowed, and so does any OTHER port on
+ * loopback. Only the gateway's own listener is refused, because that one
+ * combination is always a mistake rather than a legitimate local model server.
+ *
+ * The port is read from config (PORT, default 3001) rather than hardcoded, and
+ * a non-numeric/0 port (ephemeral test binds) disables the check rather than
+ * blocking everything.
+ */
+function isSelfReference(url: URL): boolean {
+  const configured = Number(loadConfig().port);
+  if (!Number.isInteger(configured) || configured <= 0) return false;
+
+  const port = url.port === '' ? (url.protocol === 'https:' ? 443 : 80) : Number(url.port);
+  if (port !== configured) return false;
+
+  // Only THIS host. A LAN peer or a public relay that happens to sit on the
+  // same port number is a different machine and stays allowed.
+  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (host === 'localhost' || host.endsWith('.localhost')) return true;
+  if (!net.isIP(host)) return false;
+  return classifyIp(host) === 'loopback';
+}
+
+/**
  * Assess whether an outbound custom-provider URL is safe to contact.
  * Never throws on malformed input — a bad URL comes back as {allowed: false}.
  */
@@ -217,6 +253,16 @@ export async function assessProviderUrl(rawUrl: string, opts: AssessOptions = {}
 
   if (METADATA_HOSTNAMES.has(hostname)) {
     return { allowed: false, reason: 'cloud metadata endpoints are not reachable through custom providers' };
+  }
+
+  // The gateway must never be one of its own upstream providers — checked
+  // before the private-range rules so it holds even on a local install where
+  // loopback is otherwise allowed for Ollama/LM Studio.
+  if (isSelfReference(url)) {
+    return {
+      allowed: false,
+      reason: `points at this FreeLLMAPI instance itself (port ${url.port || 'default'}) — a provider cannot be the gateway, as that loops every request back through the router`,
+    };
   }
 
   let addresses: string[];

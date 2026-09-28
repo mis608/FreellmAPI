@@ -141,6 +141,63 @@ describe('assessProviderUrl', () => {
   });
 });
 
+// Registering the gateway as its own upstream provider sends every request in a
+// loop and burns the rate limiter doing it. Refused on the gateway's own port
+// only — a local Ollama on a different port is the app's primary use case.
+describe('assessProviderUrl self-reference guard', () => {
+  const originalPort = process.env.PORT;
+
+  afterEach(() => {
+    if (originalPort === undefined) delete process.env.PORT;
+    else process.env.PORT = originalPort;
+  });
+
+  it('blocks the gateway addressing itself on its own port', async () => {
+    process.env.PORT = '3001';
+    for (const url of [
+      'http://localhost:3001/v1',
+      'http://127.0.0.1:3001/v1',
+      'http://[::1]:3001/v1',
+      'http://ollama.localhost:3001/v1',
+      'http://LOCALHOST:3001/v1',
+    ]) {
+      const verdict = await assessProviderUrl(url, { resolve: async () => ['127.0.0.1'] });
+      expect(verdict.allowed, url).toBe(false);
+      expect(verdict.reason, url).toMatch(/itself/);
+    }
+  });
+
+  it('follows a custom PORT instead of assuming 3001', async () => {
+    process.env.PORT = '8080';
+    expect((await assessProviderUrl('http://localhost:8080/v1')).allowed).toBe(false);
+    // 3001 is no longer this instance once PORT moved.
+    expect((await assessProviderUrl('http://localhost:3001/v1')).allowed).toBe(true);
+  });
+
+  it('still allows local model servers on loopback (Ollama, LM Studio)', async () => {
+    process.env.PORT = '3001';
+    // The whole point of leaving loopback allowed by default.
+    expect((await assessProviderUrl('http://localhost:11434/v1')).allowed).toBe(true);
+    expect((await assessProviderUrl('http://127.0.0.1:1234/v1')).allowed).toBe(true);
+    expect((await assessProviderUrl('http://127.0.0.1:8080/v1')).allowed).toBe(true);
+  });
+
+  it('allows a LAN peer or public host that merely shares the port number', async () => {
+    process.env.PORT = '3001';
+    // Different machines — not a self-loop.
+    expect((await assessProviderUrl('http://192.168.1.20:3001/v1')).allowed).toBe(true);
+    expect((await assessProviderUrl('http://10.0.0.5:3001/v1')).allowed).toBe(true);
+    const pub = await assessProviderUrl('https://api.example.com:3001/v1', { resolve: async () => ['93.184.216.34'] });
+    expect(pub.allowed).toBe(true);
+  });
+
+  it('blocks the self-reference even when private ranges are otherwise allowed', async () => {
+    delete process.env.FREEAPI_BLOCK_PRIVATE_PROVIDER_URLS;
+    process.env.PORT = '3001';
+    expect((await assessProviderUrl('http://localhost:3001/v1')).allowed).toBe(false);
+  });
+});
+
 describe('isLoopbackOrPrivateUrl (#592 local-endpoint cooldown exemption)', () => {
   it('true for loopback and localhost forms', () => {
     expect(isLoopbackOrPrivateUrl('http://127.0.0.1:11434/v1')).toBe(true);
