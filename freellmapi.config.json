@@ -1,0 +1,41 @@
+{
+  "customProviders": [
+    {
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "label": "Ollama (local)",
+      "apiKey": "ollama-local-no-auth",
+      "models": [
+        {
+          "model": "qwen3:1.7b",
+          "displayName": "Qwen3 1.7B (Ollama)",
+          "supportsTools": true,
+          "supportsVision": false,
+          "contextWindow": 40960,
+          "fallbackEnabled": true
+        },
+        {
+          "model": "qwen2.5-coder:3b",
+          "displayName": "Qwen2.5 Coder 3B (Ollama)",
+          "supportsTools": true,
+          "supportsVision": false,
+          "contextWindow": 32768,
+          "fallbackEnabled": true
+        }
+      ]
+    }
+  ],
+
+  "keys": [
+    { "platform": "kilo" },
+    { "platform": "ovh" }
+  ],
+
+  "models": [
+    { "platform": "kilo", "modelId": "kilo-auto/free", "fallbackEnabled": true },
+    { "platform": "kilo", "modelId": "nvidia/nemotron-3-super-120b-a12b:free", "fallbackEnabled": true },
+    { "platform": "kilo", "modelId": "cohere/north-mini-code:free", "fallbackEnabled": true },
+    { "platform": "ovh", "modelId": "gpt-oss-120b", "fallbackEnabled": true },
+    { "platform": "ovh", "modelId": "Meta-Llama-3_3-70B-Instruct", "fallbackEnabled": true }
+  ]
+}
+
