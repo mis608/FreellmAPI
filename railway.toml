@@ -1,14 +1,41 @@
+# Railway config-as-code for FreeLLMAPI (Dockerfile deploy).
+#
+# Only the keys documented in https://railway.com/railway.schema.json are read
+# here; Railway silently drops anything else. An earlier revision of this file
+# used docker-compose spellings (buildkit, release_command, healthcheck_interval,
+# healthcheck_timeout, healthcheck_retries, healthcheck_http_path) and an
+# [environment] table - none of those exist in Railway's schema, so the
+# healthcheck was never applied and the migration never ran.
+#
+# Environment variables CANNOT be set from this file. Set these in the Railway
+# dashboard (service -> Variables):
+#
+#   ENCRYPTION_KEY=<64 hex chars>  REQUIRED in production. The server exits 1 on
+#                                  boot without it (provider keys are encrypted
+#                                  at rest). Generate one with:
+#                                  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+#   HOST=0.0.0.0                   Optional. Railway's edge reaches the container
+#                                  over IPv4; the app's default bind is IPv6
+#                                  dual-stack, which also accepts IPv4.
+#
+# Do NOT set PORT: Railway injects it and uses the same value for the
+# healthcheck; the Dockerfile's PORT=3001 is only the plain-docker default.
+#
+# Attach a volume mounted at /app/server/data, otherwise the SQLite database is
+# recreated empty on every deploy. The container entrypoint chowns that
+# root-owned mount before dropping to the node user.
+
 [build]
-buildkit = true
+builder = "DOCKERFILE"
 
 [deploy]
-release_command = "node server/dist/db/migrate/cli.js up"
-healthcheck_interval = "30s"
-healthcheck_timeout = "5s"
-healthcheck_retries = "3"
-healthcheck_http_path = "/api/ping"
+healthcheckPath = "/api/ping"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
 
-[environment]
-NODE_ENV = "production"
-PORT = "3001"
-FREELLMAPI_INSTALL_METHOD = "docker"
+# No preDeployCommand on purpose. Railway runs pre-deploy commands in a separate
+# container with no volumes attached and discards its filesystem, so a migration
+# there can never touch the deployed database. The server applies pending
+# migrations itself at boot (server/src/db/index.ts -> runMigrationsSync) whenever
+# NODE_ENV is not "development".
