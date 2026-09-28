@@ -196,6 +196,32 @@ describe('assessProviderUrl self-reference guard', () => {
     process.env.PORT = '3001';
     expect((await assessProviderUrl('http://localhost:3001/v1')).allowed).toBe(false);
   });
+
+  // PUBLIC_HOSTNAME self-reference (#Railway loopback). On a PaaS the listener
+  // port is internal and the public port is 80/443, so a port comparison alone
+  // would never fire — the hostname match is what catches it.
+  it('blocks a custom provider whose host matches PUBLIC_HOSTNAME', async () => {
+    process.env.PUBLIC_HOSTNAME = 'freellmapi-production-2870.up.railway.app';
+    const blocked = await assessProviderUrl('https://freellmapi-production-2870.up.railway.app/v1');
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.reason).toContain('points at this FreeLLMAPI instance itself');
+  });
+
+  it('allows a different public hostname even when PUBLIC_HOSTNAME is set', async () => {
+    process.env.PUBLIC_HOSTNAME = 'freellmapi-production-2870.up.railway.app';
+    const ok = await assessProviderUrl('https://api.openai.com/v1', { resolve: async () => ['20.112.248.221'] });
+    expect(ok.allowed).toBe(true);
+  });
+
+  it('does not match a PUBLIC_HOSTNAME that is a suffix of the URL host', async () => {
+    process.env.PUBLIC_HOSTNAME = 'up.railway.app';
+    // 'up.railway.app' alone is not a FQDN — the check is exact, so a host that
+    // merely ends with it (a different Railway app) must stay allowed.
+    const ok = await assessProviderUrl('https://freellmapi-production-2870.up.railway.app/v1', {
+      resolve: async () => ['1.2.3.4'],
+    });
+    expect(ok.allowed).toBe(true);
+  });
 });
 
 describe('isLoopbackOrPrivateUrl (#592 local-endpoint cooldown exemption)', () => {

@@ -65,6 +65,14 @@ export interface Config {
    * - false:     never emit (let HTTP LAN installs render the dashboard).
    */
   cspUpgradeInsecureRequests: boolean | undefined;
+  /**
+   * Public hostname the gateway is reachable at (e.g. behind a reverse proxy or
+   * a PaaS like Railway). When set, custom-provider base URLs pointing back at
+   * this hostname are refused by the SSRF guard — otherwise a user can register
+   * the gateway as its own upstream provider and every request loops back
+   * through the router until the proxy rate limit trips.
+   */
+  publicHostname: string | null;
 }
 
 export function loadConfig(): Config {
@@ -89,6 +97,7 @@ export function loadConfig(): Config {
     // unset (the default) leaves it on auto — emit only when the request is
     // already TLS or forwarded as https, so HTTP LAN installs still render.
     cspUpgradeInsecureRequests: parseCspUpgradeInsecureRequests(),
+    publicHostname: process.env.PUBLIC_HOSTNAME?.trim() || null,
   };
 }
 

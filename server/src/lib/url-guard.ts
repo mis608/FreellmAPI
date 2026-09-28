@@ -217,15 +217,21 @@ function blockPrivateEnabled(): boolean {
  * blocking everything.
  */
 function isSelfReference(url: URL): boolean {
-  const configured = Number(loadConfig().port);
+  const cfg = loadConfig();
+  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+
+  // Mode 2: public hostname match (reverse proxy / PaaS). No port comparison —
+  // the public port (80/443) rarely equals the internal listener port.
+  const publicHost = cfg.publicHostname?.trim().toLowerCase();
+  if (publicHost && host === publicHost) return true;
+
+  // Mode 1: loopback on the gateway's own port.
+  const configured = Number(cfg.port);
   if (!Number.isInteger(configured) || configured <= 0) return false;
 
   const port = url.port === '' ? (url.protocol === 'https:' ? 443 : 80) : Number(url.port);
   if (port !== configured) return false;
 
-  // Only THIS host. A LAN peer or a public relay that happens to sit on the
-  // same port number is a different machine and stays allowed.
-  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
   if (host === 'localhost' || host.endsWith('.localhost')) return true;
   if (!net.isIP(host)) return false;
   return classifyIp(host) === 'loopback';
