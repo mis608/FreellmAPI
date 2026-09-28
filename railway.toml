@@ -2,7 +2,7 @@
 buildkit = true
 
 [deploy]
-release_command = "node server/dist/scripts/migrations/index.js up"
+release_command = "node server/dist/db/migrate/cli.js up"
 healthcheck_interval = "30s"
 healthcheck_timeout = "5s"
 healthcheck_retries = "3"
