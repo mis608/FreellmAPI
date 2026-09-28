@@ -1,0 +1,14 @@
+[build]
+buildkit = true
+
+[deploy]
+release_command = "node server/dist/scripts/migrations/index.js up"
+healthcheck_interval = "30s"
+healthcheck_timeout = "5s"
+healthcheck_retries = "3"
+healthcheck_http_path = "/api/ping"
+
+[environment]
+NODE_ENV = "production"
+PORT = "3001"
+FREELLMAPI_INSTALL_METHOD = "docker"
